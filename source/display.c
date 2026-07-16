@@ -95,6 +95,7 @@ float screen_frustum_y;
 
 SDL_Window *main_window = NULL;
 SDL_GLContext gl_context = NULL;
+unsigned char main_window_focused = TRUE;
 
 unsigned char line_mode = 0;            // Global control for cartoon lines
 float initial_camera_matrix[16];        // A matrix to speed up/simplify 3D drawing routines
@@ -165,7 +166,27 @@ unsigned int max_texture_size = 256;
 #define ONE_OVER_255 0.003921568627450980392156862745098f
 #define display_clear_zbuffer()         { glClear(GL_DEPTH_BUFFER_BIT); }
 #define display_clear_buffers()         { glClearColor(color_temp[0]*ONE_OVER_255, color_temp[1]*ONE_OVER_255, color_temp[2]*ONE_OVER_255, 1.0);  if(volumetric_shadows_on) { glClearStencil(8);  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); } else { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); } }
-#define display_swap()                  { SDL_GL_SwapWindow(main_window); }
+unsigned char display_window_visible(void)
+{
+    unsigned int flags;
+
+    if(main_window == NULL)
+    {
+        return FALSE;
+    }
+    flags = SDL_GetWindowFlags(main_window);
+    if((flags & SDL_WINDOW_MINIMIZED) != 0)
+    {
+        return FALSE;
+    }
+    if((flags & SDL_WINDOW_HIDDEN) != 0)
+    {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+#define display_swap()                  { if(display_window_visible() && main_window_focused) { SDL_GL_SwapWindow(main_window); } }
 #define display_viewport(x, y, w, h)    { glViewport(x, y, w, h); }
 float global_depth_min = 0.066f;
 #define display_zbuffer_on()            { glEnable(GL_DEPTH_TEST);  glDepthMask(TRUE);  glDepthFunc(GL_LEQUAL); }

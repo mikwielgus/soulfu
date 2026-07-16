@@ -563,6 +563,14 @@ void input_read(void)
                 {
                     display_handle_resize(event.window.data1, event.window.data2);
                 }
+                else if(event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+                {
+                    main_window_focused = TRUE;
+                }
+                else if(event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+                {
+                    main_window_focused = FALSE;
+                }
                 break;
             case SDL_MOUSEMOTION:
                 mouse_idle_timer = 0;

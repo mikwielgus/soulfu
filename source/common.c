@@ -80,10 +80,17 @@ void timer_end()
 //-----------------------------------------------------------------------------------------------
 unsigned int main_timer_length = 0;
 unsigned int main_timer_start_time;
+static unsigned int main_last_tick_time = 0;
 void main_timer_start()
 {
-    // <ZZ> This function is for figuring out how many frames to update...
-    main_timer_start_time = SDL_GetTicks();
+    // <ZZ> Advance the simulation clock from real time, independent of display swap...
+    unsigned int now = SDL_GetTicks();
+    if(main_last_tick_time != 0)
+    {
+        main_timer_length += now - main_last_tick_time;
+    }
+    main_last_tick_time = now;
+    main_timer_start_time = now;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -94,7 +101,6 @@ void main_timer_end()
     // <ZZ> This function is for figuring out how slow things are...
     main_timer_end_time = SDL_GetTicks();
     timer_end_length = (main_timer_end_time-main_timer_start_time);
-    main_timer_length += timer_end_length;
 
 
     // Do FPS calculations

@@ -111,17 +111,6 @@ void main_loop(void)
     color_temp[0] = 0;  color_temp[1] = 0;  color_temp[2] = 0;
     if(play_game_active)
     {
-      if(map_current_room < MAX_MAP_ROOM)
-      {
-        if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE)
-        {
-          color_temp[0] = 64;  color_temp[1] = 64;  color_temp[2] = 255;
-        }
-      }
-      display_clear_buffers();
-
-
-
       if(key_pressed[SDL_SCANCODE_F9])
       {
         pause_active=!pause_active;
@@ -160,44 +149,58 @@ void main_loop(void)
       // !!!BAD!!!
       // !!!BAD!!!
 
-      // Move characters around...
+      // Move characters around...  Runs even when the window is unfocused.
       main_frame_skip = 0;
-      if(main_timer_length >= 16)
       {
-        // Only do up to 4 updates per drawn frame to ensure that the game doesn' get totally
-        // hosed from being too slow to update (and constantly has more and more frames
-        // to catch up on...)
-        while(main_timer_length >= 16 && main_frame_skip < 4)
+        unsigned short max_frame_skip = main_window_focused ? 4 : 64;
+        if(main_timer_length >= 16)
+        {
+          // Only do up to max_frame_skip updates per loop to ensure that the game doesn' get totally
+          // hosed from being too slow to update (and constantly has more and more frames
+          // to catch up on...)
+          while(main_timer_length >= 16 && main_frame_skip < max_frame_skip)
+          {
+            character_local_player_control();
+            if(!pause_active)
+            {
+              if(global_luck_timer > 0)
+              {
+                global_luck_timer--;
+              }
+              character_update_all();
+              character_collide_all();
+              particle_update_all();
+              character_bone_frame_all();
+              character_refresh_items_all();
+            }
+            else
+            {
+              character_bone_frame_all();
+            }
+
+
+            main_timer_length-=16;
+            main_game_frame++;
+            main_frame_skip++;
+          }
+        }
+        else
         {
           character_local_player_control();
-          if(!pause_active)
-          {
-            if(global_luck_timer > 0)
-            {
-              global_luck_timer--;
-            }
-            character_update_all();
-            character_collide_all();
-            particle_update_all();
-            character_bone_frame_all();
-            character_refresh_items_all();
-          }
-          else
-          {
-            character_bone_frame_all();
-          }
-
-
-          main_timer_length-=16;
-          main_game_frame++;
-          main_frame_skip++;
+          character_bone_frame_all();
         }
       }
-      else
+
+      if(display_window_visible() && main_window_focused)
       {
-        character_local_player_control();
-        character_bone_frame_all();
-      }
+        if(map_current_room < MAX_MAP_ROOM)
+        {
+          if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE)
+          {
+            color_temp[0] = 64;  color_temp[1] = 64;  color_temp[2] = 255;
+          }
+        }
+        display_clear_buffers();
 
 
 
@@ -276,13 +279,17 @@ if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE) {
       //                    display_marker(red, 6.0f, 0.0f, 0.1f, 1.0f);  // X axis marker
       //                }
       //            #endif
+      }
     }
     else
     {
       // Game isn't active, but still run our timers so the window scripts
       // work right...
       pause_active = FALSE;
-      display_clear_buffers();
+      if(display_window_visible())
+      {
+        display_clear_buffers();
+      }
       character_bone_frame_clear();
       main_frame_skip = 0;
       while(main_timer_length >= 16)
@@ -295,6 +302,8 @@ if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE) {
 
 
 
+    if(display_window_visible() && (!play_game_active || main_window_focused))
+    {
     // Draw window stuff...
     drawing_world = FALSE;
     glLoadMatrixf(window_camera_matrix);
@@ -587,6 +596,8 @@ if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE) {
 
     // Display everything once it's drawn...
     display_swap();
+    }
+
 
 
     // Reset our input...  Do once per display
@@ -627,6 +638,10 @@ if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE) {
     //                display_start_fade(FADE_TYPE_CIRCLE, FADE_OUT, 200.0f, 150.0f, black);
     //            }
 #endif
+    if(!main_window_focused && main_timer_length < 16)
+    {
+      SDL_Delay(16 - main_timer_length);
+    }
     main_timer_end();
   }
 }
