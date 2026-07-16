@@ -318,11 +318,9 @@ Setup()
   int seed, i, flags, difficulty, mine_fork_room, fail
 
 
-  // Set the game seed...
-  // !!!BAD!!!
-  // !!!BAD!!!  Should probably do this better...
-  // !!!BAD!!!
-  seed = SystemGet(SYS_MAINVIDEOFRAME, 0, 0)
+  // Set the game seed...  The seed is shared by all machines in a network
+  // game, so everybody generates the same world...
+  seed = SystemGet(SYS_GAMESEED, 0, 0)
   SystemSet(SYS_RANDOMSEED, 0, 0, seed)
 
 

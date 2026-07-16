@@ -1,464 +1,147 @@
-#define button_one    self.stat00l
-#define button_two    self.stat00h
-#define button_three  self.stat01l
-#define button_four   self.stat01h
-#define button_five   self.stat02l
-#define button_six    self.stat02h
-#define button_seven  self.stat03l
-#define button_eight  self.stat03h
+#define button_host   self.stat00l
+#define button_join   self.stat00h
+#define button_back   self.stat01l
+#define button_abort  self.stat01h
 #define netmap_mode   self.stat05l
-#define continent     self.stat05h
-#define button_nine   self.stat06l
-#define picked_letter self.stat07l
-#define delay         self.stat07h
-#define timer         self.stat08w
+#define address       self.bigtext
 
-#define NETMAP_MAP      0
-#define NETMAP_NAME     1
-#define NETMAP_ERROR    2
-
-//-----------------------------------------------------------------------
-int GetPhoneticName(int letter)
-  if(letter >= 'a' && letter <= 'z')
-    letter = letter-'a'
-  else
-    if(letter >= 'A' && letter <= 'Z')
-      letter = letter-'A'
-    else
-      return "????????"
-  if(letter == 0)
-    return "Alpha"
-  if(letter == 1)
-    return "Bravo"
-  if(letter == 2)
-    return "Charlie"
-  if(letter == 3)
-    return "Delta"
-  if(letter == 4)
-    return "Echo"
-  if(letter == 5)
-    return "Foxtrot"
-  if(letter == 6)
-    return "Golf"
-  if(letter == 7)
-    return "Hotel"
-  if(letter == 8)
-    return "India"
-  if(letter == 9)
-    return "Juliet"
-  if(letter == 10)
-    return "Kilo"
-  if(letter == 11)
-    return "Lima"
-  if(letter == 12)
-    return "Mike"
-  if(letter == 13)
-    return "November"
-  if(letter == 14)
-    return "Oscar"
-
-  if(letter == 15)
-    return "Papa"
-  if(letter == 16)
-    return "Quebec"
-  if(letter == 17)
-    return "Romeo"
-  if(letter == 18)
-    return "Sierra"
-  if(letter == 19)
-    return "Tango"
-  if(letter == 20)
-    return "Uniform"
-  if(letter == 21)
-    return "Victor"
-  if(letter == 22)
-    return "Whiskey"
-  if(letter == 23)
-    return "X-Ray"
-  if(letter == 24)
-    return "Yankee"
-  if(letter == 25)
-    return "Zulu"
-  return "BAD"
+#define NETMAP_MENU     0
+#define NETMAP_JOINING  1
 
 //-----------------------------------------------------------------------
 Spawn()
   int self
   self = FindSelf()
-  button_one = 0
-  button_two = 0
-  button_three = 0
-  button_four = 0
-  button_five = 0
-  button_six = 0
-  button_seven = 0
-  button_eight = 0
-  button_nine = 0
-  netmap_mode = NETMAP_MAP
-  continent = 0
-  picked_letter = 0
-  delay = 0
-  timer = 0
+  button_host = 0
+  button_join = 0
+  button_back = 0
+  button_abort = 0
+  netmap_mode = NETMAP_MENU
+  StringClear(address)
+  StringAppend(address, "127.0.0.1:17859", 128)
 
 
 //-----------------------------------------------------------------------
-int NetMapImage(float x, float y, int is_big, int file, int text, int value)
-  int new_value
-  float size
-
-
-  if(is_big)
-    size = 4.0
-  else
-    size = 2.0
-
-
-  // Drawn image...
-  if(value)
-    WindowMegaImage(x-size, y-size, x+size, y-size, x+size, y+size, x-size, y+size, 0.0, 0.0, 1.0, 1.0, YELLOW, ALPHA_TRANS+255, file)
-  else
-    WindowMegaImage(x-size, y-size, x+size, y-size, x+size, y+size, x-size, y+size, 0.0, 0.0, 1.0, 1.0, WHITE, ALPHA_TRANS+255, file)
-
-
-  // Hidden button...
-  if(value < 250)
-    new_value = WindowImage(x-size, y-size, size*2.0, size*2.0, NULL, text, value)
-  else
-    WindowImage(x-size, y-size, size*2.0, size*2.0, NULL, text, value)
-    new_value = value-1
-  return new_value  
-
-//-----------------------------------------------------------------------
-int DrawPhoneticHighlight(int letter)
-  int self, alpha
-  float offy
-  float tlx, tly, brx, bry
-
-
-
-  if(letter >= 'A' && letter <= 'Z')
-    self = FindSelf()
-    offy = 0.0
-    alpha = 128
-    if(letter == picked_letter)
-      offy = 0.5
-      alpha = 255
-    letter = letter-'A'
-    tlx = 0.0
-    if(letter >= 13)
-      tlx = 9.0
-    brx = tlx+9.0
-    tly = letter%13
-    bry = tly+1.0
-    WindowMegaImage(tlx, tly, brx, tly, brx, bry, tlx, bry, 0.0, offy, 1.0, offy+0.53, WHITE, ALPHA_TRANS+alpha, "FILE:WINMINI.RGB")
-
-//-----------------------------------------------------------------------
-Refresh()
-  int    i, self, curx, cury, direction
-  int    letter, ping_time, num_players, color, length
+// Fires up the actual game (character creation windows) once we're
+// hosting or have finished joining...  Same flow as WMAIN's local game...
+StartGame()
   float screenx, xpos, xadd
 
   screenx = SystemGet(SYS_SCREENPARAMS, 0, 2)
   xadd = screenx / 2
   xpos = xadd / 2
+  StopMusic()
+  GoPoof(POOF_ALL_OTHER_WINDOWS)
+  MAPGEN.Setup()
+  MAPGEN.SetCurrentRoom(0)
+  if(SystemGet(SYS_PLAYERDEVICE, 0, PLAYER_DEVICE_TYPE)!=PLAYER_DEVICE_NONE)
+    Spawn(WINDOW, xpos, 80.0, 0.0, "FILE:WSPAWN.RUN")
+  if(SystemGet(SYS_PLAYERDEVICE, 1, PLAYER_DEVICE_TYPE)!=PLAYER_DEVICE_NONE)
+    Spawn(WINDOW, xpos + xadd, 80.0, 1.0, "FILE:WSPAWN.RUN")
+  if(SystemGet(SYS_PLAYERDEVICE, 2, PLAYER_DEVICE_TYPE)!=PLAYER_DEVICE_NONE)
+    Spawn(WINDOW, xpos, 210.0, 2.0, "FILE:WSPAWN.RUN")
+  if(SystemGet(SYS_PLAYERDEVICE, 3, PLAYER_DEVICE_TYPE)!=PLAYER_DEVICE_NONE)
+    Spawn(WINDOW, xpos + xadd, 210.0, 3.0, "FILE:WSPAWN.RUN")
+  Spawn(WINDOW, screenx / 2, 280.0, 1.0, "FILE:WLEAVE.RUN")
+  GoPoof(POOF_SELF)
+
+
+//-----------------------------------------------------------------------
+Refresh()
+  int    self, progress
+  float  screenx, xadd
+
+  screenx = SystemGet(SYS_SCREENPARAMS, 0, 2)
+  xadd = screenx / 2
 
   // Allow us to save data in the window's properties...
   self = FindSelf()
-
-
-  // Join progress window...
-  if(timer)
-    // Abort...
-    self.x = xadd
-    self.y = 150.0
-    if(timer == 1 && button_eight == 250)
-      ButtonSound()
-      Spawn(WINDOW, xadd, 150.0, 1.0, "FILE:WMAIN.RUN")
-      GoPoof(POOF_SELF)
-
-
-    // Progress text...
-    StringClear(String(0))
-    length = SystemGet(SYS_JOINPROGRESS, 0, 0)
-    if(length == 1)
-      StringAppend(String(0), "Sent Request", 256)
-    if(length == 2)
-      StringAppend(String(0), "Got Reply", 256)
-    if(length == 3)
-      StringAppend(String(0), "Ironing Out Details", 256)
-    if(length == 4)
-      MAPGEN.Setup()
-      Spawn(WINDOW, xpos, 70.0, 0.0, "FILE:WSPAWN.RUN")
-      Spawn(WINDOW, xpos + xadd, 70.0, 1.0, "FILE:WSPAWN.RUN")
-      Spawn(WINDOW, xpos, 200.0, 2.0, "FILE:WSPAWN.RUN")
-      Spawn(WINDOW, xpos + xadd, 200.0, 3.0, "FILE:WSPAWN.RUN")
-      Spawn(WINDOW, xadd, 280.0, 1.0, "FILE:WLEAVE.RUN")
-      GoPoof(POOF_SELF)
-    WindowBorder(FALSE, -10.0, -2.0, 20, 4, BORDER_FULL)
-    length = StringLength(String(0))
-    WindowString(WHITE, 0.5*(20-length), 0.5, String(0))
-
-
-    // Timer/Abort button...
-    length = SystemGet(SYS_MAINFRAMESKIP, 0, 0)
-    StringClear(String(0))
-    if(timer > length)
-      timer = timer - length
-    else
-      timer = 1
-    if(timer > 1)
-      StringAppendNumber(String(0), timer/60, 256)
-    else
-      StringAppend(String(0), StringLanguage(25), 256)
-    button_eight = ButtonImage(button_eight, 0.0, 2.0, 20, 2, String(0))
-    return 0
+  self.x = xadd
+  self.y = 150.0
 
 
   // Big error pop up if network is broken...
   if(!SystemGet(SYS_NETWORKON, 0, 0))
-    self.x = xadd
-    self.y = 150.0
-    if(button_one == 250)
+    if(button_back == 250)
       ButtonSound()
       Spawn(WINDOW, xadd, 150.0, 1.0, "FILE:WMAIN.RUN")
       GoPoof(POOF_SELF)
-
-// !!!BAD!!!
-// !!!BAD!!! Old message before ripping out network code...
-// !!!BAD!!!
-//    WindowBorder(FALSE, -10.0, -2.0, 20, 4, BORDER_FULL)
-//    StringClear(String(0))
-//    StringAppend(String(0), "TCP/IP Broken!", 256)
-//    length = StringLength(String(0))
-//    WindowString(WHITE, 0.5*(20-length), 0.5, String(0))
-// !!!BAD!!!
-// !!!BAD!!!
-// !!!BAD!!!
-
-
     WindowBorder(FALSE, -10.5, -4.5, 21, 9, BORDER_FULL)
-    WindowString(WHITE, 0.0, 0.0, "The network code is")
-    WindowString(WHITE, 0.0, 1.0, "written, but somebody")
-    WindowString(WHITE, 0.0, 2.0, "else is going to have")
-    WindowString(WHITE, 0.0, 3.0, "to clean it up...")
-    WindowString(WHITE, 15.0, 5.5, "-Aaron")
-
-
-    button_one = ButtonImage(button_one, 0.0, 7.0, 21, 2, "Sorry")
+    WindowString(WHITE, 0.0, 1.0, "Network is not available")
+    WindowString(WHITE, 0.0, 3.0, "See logfile.txt for details")
+    button_back = ButtonImage(button_back, 0.0, 7.0, 21, 2, "Go Back")
     return 0
 
 
-  // Try to leave any game we're part of...
-  SystemSet(SYS_LEAVEGAME, 0, 0, 0)
+  // Join in progress...
+  if(netmap_mode == NETMAP_JOINING)
+    progress = SystemGet(SYS_JOINPROGRESS, 0, 0)
+    if(progress == 4)
+      // We're in - the world seed and peer list have arrived...
+      StartGame()
+      return 0
+    if(!SystemGet(SYS_TRYINGTOJOINGAME, 0, 0))
+      // Join failed or timed out (details in the message log)...
+      netmap_mode = NETMAP_MENU
+    if(button_abort == 250)
+      ButtonSound()
+      SystemSet(SYS_LEAVEGAME, 0, 0, 0)
+      netmap_mode = NETMAP_MENU
+      button_abort = 0
+    TitleBar(FALSE, 0.0, -10.5, StringLanguage(16))
+    WindowBorder(FALSE, -12.0, -3.0, 24, 7, BORDER_FULL)
+    WindowString(WHITE, 0.0, 0.5, "Joining...")
+    WindowString(WHITE, 0.0, 2.0, address)
+    button_abort = ButtonImage(button_abort, 0.0, 5.0, 24, 2, "Abort")
+    return 0
 
 
-  // Direction stuff...  Used to have a compass thing...
-  // Shouldn't really need this any more...
-  direction = 0
-
-
-
-  // Button actions
-  if(netmap_mode == NETMAP_MAP)
-    if(button_one == 250)
-      continent = 0
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-    if(button_two == 250)
-      continent = 1
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-    if(button_three == 250)
-      continent = 2
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-    if(button_four == 250)
-      continent = 3
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-    if(button_five == 250)
-      continent = 4
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-    if(button_six == 250)
-      continent = 5
-      netmap_mode = NETMAP_NAME
-      ButtonSound()
-      button_nine = 251
-  if(button_seven == 250)
+  // Main menu...  Button actions first...
+  if(button_host == 250)
+    ButtonSound()
+    SystemSet(SYS_HOSTGAME, 0, 0, 0)
+    StartGame()
+    return 0
+  if(button_join == 250)
+    ButtonSound()
+    SystemSet(SYS_JOINGAME, address, 0, 0)
+    if(SystemGet(SYS_TRYINGTOJOINGAME, 0, 0))
+      netmap_mode = NETMAP_JOINING
+    button_join = 0
+  if(button_back == 250)
     ButtonSound()
     Spawn(WINDOW, xadd, 150.0, 1.0, "FILE:WMAIN.RUN")
     GoPoof(POOF_SELF)
-  if(button_eight == 250)
-    ButtonSound()
-//    if(FullPasswordCheck())
-//      SystemSet(SYS_INCLUDEPASSWORD, 0, 0, 0)
-    SystemSet(SYS_JOINGAME, continent, direction, picked_letter-'A')
-    if(SystemGet(SYS_TRYINGTOJOINGAME, 0, 0))
-      // Only proceed to the timer section if the request was sent...
-      timer = 15*60
-    button_eight = 0
-  if(button_nine == 251 && netmap_mode == NETMAP_NAME)
-    WindowBorder(FALSE, -10.0, -2.0, 20, 4, BORDER_FULL)
-    WindowString(WHITE, 1.0, 1.0, "Getting shard list")
-    WindowString(WHITE, 1.0, 2.0, "(may take a while)")
-    button_nine--
-    return 0
-  if(button_nine == 250 && netmap_mode == NETMAP_NAME)
-    ButtonSound()
-    delay = 30
-    if(!SystemGet(SYS_MAINSERVERLOCATED, 0, 0))
-      netmap_mode++
-    else
-      SystemGet(SYS_SHARDLIST, continent, direction)
-    button_nine = 0
 
 
   // Title bar
   TitleBar(FALSE, 0.0, -10.5, StringLanguage(16))
 
 
-  // Final selection window
-  WindowBorder(FALSE, -12.0, 3.25, 24, 6, BORDER_LOW_TITLE)
-  if(netmap_mode != NETMAP_ERROR)
-    if(netmap_mode > NETMAP_MAP)
-      StringClear(String(0))
-      if(continent == 0)
-        StringAppend(String(0), "North America", 256)
-      if(continent == 1)
-        StringAppend(String(0), "South America", 256)
-      if(continent == 2)
-        StringAppend(String(0), "Asia", 256)
-      if(continent == 3)
-        StringAppend(String(0), "Europe", 256)
-      if(continent == 4)
-        StringAppend(String(0), "Africa", 256)
-      if(continent == 5)
-        StringAppend(String(0), "Australia", 256)
+  // Main window
+  WindowBorder(FALSE, -12.0, -8.0, 24, 17, BORDER_FULL)
+  button_host = ButtonImage(button_host, 0.0, 0.0, 24.0, 2.0, "Host Game")
 
 
-      if(netmap_mode == NETMAP_NAME && picked_letter >= 'A' && picked_letter <= 'Z')
-        ping_time = SystemGet(SYS_SHARDLISTPING, 0, (picked_letter-'A'))
-        num_players = SystemGet(SYS_SHARDLISTPLAYERS, 0, (picked_letter-'A'))
-        StringAppend(String(0), " - ", 256)
-        StringAppend(String(0), GetPhoneticName(picked_letter), 256)
-        WindowString(WHITE, 0.0, 0.5, String(0))
-
-        if(ping_time > 0 && num_players > 0)
-          StringClear(String(0))
-          StringAppend(String(0), "Ping of ", 256)
-          StringAppendNumber(String(0), ping_time, 256)
-          StringAppend(String(0), " mSecs", 256)
-          if(ping_time > 400)
-            WindowString(RED, 0.0, 1.5, String(0))
-          else
-            WindowString(WHITE, 0.0, 1.5, String(0))
-
-          StringClear(String(0))
-          StringAppendNumber(String(0), num_players, 256)
-          StringAppend(String(0), " players", 256)
-          WindowString(WHITE, 0.0, 2.5, String(0))
-      else
-        WindowString(WHITE, 0.0, 0.5, String(0))
-  if(netmap_mode == NETMAP_NAME)
-    button_seven = ButtonImage(button_seven, 0.0, 4.0, 12, 2, "GoPoof")
-    button_eight = ButtonImage(button_eight, 12.0, 4.0, 12, 2, "Join Game")
-    if(picked_letter >= 'A' && picked_letter <= 'Z')
-      if(ping_time < 0 || ping_time > 500 || num_players < 0)
-        if(button_eight > 240)
-          BuzzerSound()
-          button_eight = 0
-    else
-      if(button_eight > 240)
-        BuzzerSound()
-        button_eight = 0
-  else
-    button_seven = ButtonImage(button_seven, 0.0, 4.0, 24, 2, "GoPoof")
+  WindowString(WHITE, 0.0, 3.5, "Host address (click to edit)")
+  WindowInput(0.0, 4.5, 24, address, 0)
+  button_join = ButtonImage(button_join, 0.0, 6.0, 24.0, 2.0, "Join Game")
 
 
-  // Text window
-  WindowBorder(FALSE, 0.5, -10.5, 19, 13, BORDER_FULL)
-  if(SystemGet(SYS_VERSIONERROR, 0, 0))
-    netmap_mode = NETMAP_ERROR
-  if(netmap_mode == NETMAP_ERROR)
-    if(SystemGet(SYS_VERSIONERROR, 0, 0))
-      WindowString(WHITE, 1.0, 3.0, "ERROR ERROR ERROR")
-      WindowString(WHITE, 2.5, 5.0, "Update game to")
-      StringClear(String(0))
-      StringAppend(String(0), "version ", 256)
-      StringAppendNumber(String(0), SystemGet(SYS_VERSIONERROR, 0, 1), 256)
-      StringAppend(String(0), ".", 256)
-      StringAppendNumber(String(0), SystemGet(SYS_VERSIONERROR, 0, 2), 256)
-      StringAppend(String(0), " at", 256)
-      WindowString(WHITE, 0.5*(19-StringLength(String(0))), 6.0, String(0))
-      WindowString(WHITE, 0.0, 7.0, "www.aaronbishop.com")
-      WindowString(WHITE, 1.0, 9.0, "ERROR ERROR ERROR")
-    else
-      WindowString(WHITE, 1.0, 4.0, "ERROR ERROR ERROR")
-      WindowString(WHITE, 1.0, 6.0, "Server not found!")
-      WindowString(WHITE, 1.0, 8.0, "ERROR ERROR ERROR")
-  if(netmap_mode == NETMAP_NAME)
-    if(delay == 0)
-      i = 0
-      while(i < 4)
-        if(SystemGet(SYS_CURSORINOBJECT, i, 0))
-          curx = SystemGet(SYS_CURSORPOS, i, 0)
-          cury = SystemGet(SYS_CURSORPOS, i, 1)
-          if(curx > 0 && cury > 0)
-            if(curx < 1795 && cury < 1289)
-              letter = ((curx > 897)*13) + (cury/100) + 'A'
-              DrawPhoneticHighlight(letter)
-              if(SystemGet(SYS_CURSORBUTTONDOWN, i, 0) & 7)
-                picked_letter = letter
-        i++
-      DrawPhoneticHighlight(picked_letter)
-    else
-      i = SystemGet(SYS_MAINFRAMESKIP, 0, 0)
-      if(delay > i)
-        delay = delay-i
-      else
-        delay = 0
-    i = 'A'
-    while(i <= 'Z')
-      ping_time = SystemGet(SYS_SHARDLISTPING, 0, (i-'A'))
-      num_players = SystemGet(SYS_SHARDLISTPLAYERS, 0, (i-'A'))
-      color = WHITE
-      if(ping_time > 500 || num_players < 0)
-        color = RED
-      if(num_players == 0 && ping_time == 0)
-        color = YELLOW
-      if(i <= 'M')
-        WindowString(color, 0.0, i-'A', GetPhoneticName(i))
-      else
-        WindowString(color, 10.0, i-'N', GetPhoneticName(i))
-      i++
+  // Network status readout...
+  StringClear(String(0))
+  StringAppend(String(0), "Listening on port ", 256)
+  StringAppendNumber(String(0), SystemGet(SYS_SERVERSTATISTICS, 0, 0), 256)
+  WindowString(WHITE, 0.0, 9.5, String(0))
+  StringClear(String(0))
+  StringAppendNumber(String(0), SystemGet(SYS_SERVERSTATISTICS, 0, 2), 256)
+  StringAppend(String(0), " sent, ", 256)
+  StringAppendNumber(String(0), SystemGet(SYS_SERVERSTATISTICS, 0, 3), 256)
+  StringAppend(String(0), " received", 256)
+  WindowString(WHITE, 0.0, 10.5, String(0))
 
 
-
-  // Map window
-  WindowBorder(FALSE, -18.5, -10.5, 18, 13, BORDER_FULL)
-
-
-  // Map buttons...
-  if(netmap_mode == NETMAP_MAP)
-    button_one = NetMapImage(4.0, 4.0, TRUE, "FILE:=NETNA.RGB", "North America", button_one)
-    button_two = NetMapImage(5.9, 9.3, FALSE, "FILE:=NETSA.RGB", "South America", button_two)
-    button_three = NetMapImage(13.5, 5.0, TRUE, "FILE:=NETASIA.RGB", "Asia", button_three)
-    button_four = NetMapImage(10.2, 3.5, FALSE, "FILE:=NETEURO.RGB", "Europe", button_four)
-    button_five = NetMapImage(9.3, 7.6, FALSE, "FILE:=NETAFRO.RGB", "Africa", button_five)
-    button_six = NetMapImage(15.5, 9.0, FALSE, "FILE:=NETAUSI.RGB", "Australia", button_six)
-  else
-    NetMapImage(4.0, 4.0, TRUE, "FILE:=NETNA.RGB", NULL, (continent==0))
-    NetMapImage(5.9, 9.3, FALSE, "FILE:=NETSA.RGB", NULL, (continent==1))
-    NetMapImage(13.5, 5.0, TRUE, "FILE:=NETASIA.RGB", NULL, (continent==2))
-    NetMapImage(10.2, 3.5, FALSE, "FILE:=NETEURO.RGB", NULL, (continent==3))
-    NetMapImage(9.3, 7.6, FALSE, "FILE:=NETAFRO.RGB", NULL, (continent==4))
-    NetMapImage(15.5, 9.0, FALSE, "FILE:=NETAUSI.RGB", NULL, (continent==5))
+  button_back = ButtonImage(button_back, 0.0, 13.0, 24.0, 2.0, "Go Back")
 
 
 //-----------------------------------------------------------------------

@@ -283,6 +283,7 @@ const char ff_map[MAX_FAST_FUNCTION][32] = {
 #define SYS_SAVE                    227
 #define SYS_LOAD                    228
 #define SYS_SCREENPARAMS            229
+#define SYS_HOSTGAME                230
 #define SYS_MODELCHECKHACK          255
 
 
@@ -2076,10 +2077,21 @@ signed char run_script(unsigned char* address, unsigned char* file_start, unsign
                             break;
                     #endif
                     case SYS_JOINGAME:
-                        // j is the continent, k is the direction, m is the letter...
-// !!!BAD!!!
-// !!!BAD!!!  Should probably rework for network...
-// !!!BAD!!!
+                        // j == 255 (see WMAIN.SRC) means start a local game...  Otherwise j is
+                        // a "host:port" string and we try to join a network game there...
+                        if(j == 255)
+                        {
+                            network_leave_game();
+                            generate_game_seed();
+                            main_game_active = TRUE;
+                        }
+                        else
+                        {
+                            network_join_game((char*) j);
+                        }
+                        break;
+                    case SYS_HOSTGAME:
+                        network_host_game();
                         break;
                     case SYS_STARTGAME:
                         play_game_active = TRUE;
@@ -2094,9 +2106,7 @@ log_message("INFO:   Starting game");
                         }
                         break;
                     case SYS_LEAVEGAME:
-// !!!BAD!!!
-// !!!BAD!!!  Should probably rework for network...
-// !!!BAD!!!
+                        network_leave_game();
                         play_game_active = FALSE;
                         main_game_active = FALSE;
                         break;
@@ -2989,7 +2999,15 @@ sprintf(DEBUG_STRING, "Autotrim length == %f", autotrim_length);
                         }
                         if(k == MAP_ROOM_CURRENT)
                         {
-                            map_current_room = (unsigned short) m;
+                            if((unsigned short) m != map_current_room)
+                            {
+                                map_current_room = (unsigned short) m;
+                                network_on_local_room_change();
+                            }
+                            else
+                            {
+                                map_current_room = (unsigned short) m;
+                            }
                         }
                         if(k == MAP_ROOM_DOOR_PUSHBACK)
                         {
@@ -3030,44 +3048,7 @@ sprintf(DEBUG_STRING, "Autotrim length == %f", autotrim_length);
                         break;
                     case SYS_MAPOBJECTRECORD:
                         // Records which room objects have been poof'd
-                        if(map_current_room < num_map_room)
-                        {
-                            repeat(j, 8)
-                            {
-                                map_room_data[map_current_room][32+j] = 255;
-                            }
-//log_message("INFO:   Object Record list...");
-                            repeat(j, MAX_CHARACTER)
-                            {
-                                if(main_character_on[j])
-                                {
-                                    k = main_character_data[j][249];
-//log_message("INFO:     Object %d is on", k);
-                                    if(k < 64)
-                                    {
-                                        opcode = FALSE;
-                                        repeat(m, MAX_LOCAL_PLAYER)
-                                        {
-                                            opcode = opcode || (*((unsigned short*)(main_character_data[j]+76)) == local_player_character[m]);
-                                        }
-                                        if(main_character_data[j][78] == TEAM_GOOD && opcode)
-                                        {
-//log_message("INFO:       Object %d was recorded as off, because it was a TEAM_GOOD helper...", k);
-                                        }
-                                        else
-                                        {
-                                            map_room_data[map_current_room][32+(k>>3)] = map_room_data[map_current_room][32+(k>>3)] & (255 - (1<<(k&7)));
-                                            main_character_data[j][249] = 255;
-                                        }
-                                    }
-                                }
-                            }
-//log_message("INFO:   Object Record list final...");
-                            repeat(j, 8)
-                            {
-//log_message("INFO:     %d", map_room_data[map_current_room][32+j]);
-                            }
-                        }
+                        map_record_current_room_objects();
                         break;
                     case SYS_MAPOBJECTDEFEATED:
                         // m is the character to remove from map...  Usually not needed, unless it's to be removed without poofing (or poof comes later)...
@@ -4082,27 +4063,15 @@ sprintf(DEBUG_STRING, "Autotrim length == %f", autotrim_length);
                         i = main_game_active;
                         break;
                     case SYS_NETWORKGAMEACTIVE:
-// !!!BAD!!!
-// !!!BAD!!!  Stupid
-// !!!BAD!!!
-                        i = 0;
+                        i = network_game_active;
                         break;
                     case SYS_TRYINGTOJOINGAME:
-// !!!BAD!!!
-// !!!BAD!!!  Stupid
-// !!!BAD!!!
-                        i = 0;
+                        i = (join_progress >= 1 && join_progress < 4);
                         break;
                     case SYS_JOINPROGRESS:
-// !!!BAD!!!
-// !!!BAD!!!  Stupid
-// !!!BAD!!!
-                        i = 0;
+                        i = join_progress;
                         break;
                     case SYS_GAMESEED:
-// !!!BAD!!!
-// !!!BAD!!!  Stupid...  Change to map_seed...
-// !!!BAD!!!
                         i = game_seed;
                         break;
                     case SYS_LOCALPASSWORDCODE:
@@ -4122,10 +4091,15 @@ sprintf(DEBUG_STRING, "Autotrim length == %f", autotrim_length);
                         i = TRUE;
                         break;
                     case SYS_SERVERSTATISTICS:
-// !!!BAD!!!
-// !!!BAD!!!  Stupid...
-// !!!BAD!!!
+                        // Repurposed as local network statistics...
+                        // k: 0 == our port, 1 == peer count, 2 == packets sent,
+                        //    3 == packets received, 4 == packets rejected
                         i = 0;
+                        if(k == 0) { i = network_port; }
+                        if(k == 1) { i = num_remote; }
+                        if(k == 2) { i = network_packets_sent; }
+                        if(k == 3) { i = network_packets_received; }
+                        if(k == 4) { i = network_packets_rejected; }
                         break;
                     case SYS_LOCALPLAYER:
                         // j is the local player (0-3)...  Return value needn't be a valid character...

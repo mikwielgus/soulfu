@@ -712,6 +712,13 @@ unsigned char* render_get_set_external_linkage(unsigned char* data, unsigned cha
 unsigned char render_pregenerate_normals(unsigned char* data, unsigned short frame, unsigned char detail_level);
 unsigned char particle_attach_to_character(unsigned short particle, unsigned short character, unsigned char bone_type);
 void network_send(unsigned char remotes_to_send_to);
+unsigned char network_room_is_remotely_occupied(unsigned short room);
+void network_on_local_room_change(void);
+void map_sync_to_peer_room(unsigned short next_room, unsigned short from_room);
+void map_record_current_room_objects(void);
+extern unsigned short map_current_room;
+extern unsigned char map_room_objects_hosted;
+extern unsigned char network_game_active;
 void display_loadin(float amount_done);
 void display_handle_resize(int w, int h);
 void render_rdy(unsigned char* data, unsigned short frame, unsigned char mode, unsigned char** texture_file_data_block, unsigned char main_alpha, unsigned char* bone_frame_data, unsigned char petrify, unsigned char eye_frame);

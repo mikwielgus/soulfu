@@ -39,6 +39,7 @@ unsigned short automap_room_list[MAX_AUTOMAP_ROOM];
 
 unsigned short map_current_room = 0;
 unsigned short map_last_town_room = 0;
+unsigned char map_room_objects_hosted = TRUE;  // FALSE if this visit only has network puppets
 
 float map_room_door_pushback = 0.0f;  // For figgerin' door xyz location on room change...
 
@@ -851,6 +852,326 @@ void map_automap_draw()
 
 
     display_zbuffer_on();
+}
+
+//-----------------------------------------------------------------------------------------------
+static unsigned char map_index_is_local_player(unsigned short index)
+{
+    unsigned short player, owner, owner_owner;
+    unsigned char* character_data;
+
+    repeat(player, MAX_LOCAL_PLAYER)
+    {
+        if(local_player_character[player] == index)
+        {
+            return TRUE;
+        }
+    }
+    if(index >= MAX_CHARACTER || !main_character_on[index])
+    {
+        return FALSE;
+    }
+    character_data = main_character_data[index];
+    owner = *((unsigned short*) (character_data+76));
+    repeat(player, MAX_LOCAL_PLAYER)
+    {
+        if(local_player_character[player] == owner)
+        {
+            return TRUE;
+        }
+    }
+    if(owner < MAX_CHARACTER && main_character_on[owner])
+    {
+        owner_owner = *((unsigned short*) (main_character_data[owner]+76));
+        repeat(player, MAX_LOCAL_PLAYER)
+        {
+            if(local_player_character[player] == owner_owner)
+            {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+//-----------------------------------------------------------------------------------------------
+static void map_get_door_xyz(unsigned short room, unsigned short from_room, float pushback, float* xyz, unsigned short* spin)
+{
+    unsigned char door;
+    unsigned char door_found;
+    unsigned char* srf_file;
+    unsigned short rotation;
+    float offset_xyz[3];
+
+    xyz[X] = 0.0f;
+    xyz[Y] = 0.0f;
+    xyz[Z] = 0.0f;
+    if(spin)
+    {
+        *spin = 0;
+    }
+    if(room >= num_map_room)
+    {
+        return;
+    }
+
+    door_found = 255;
+    repeat(door, 5)
+    {
+        if(*((unsigned short*) (map_room_data[room]+14+(door<<1))) == from_room)
+        {
+            door_found = door;
+            break;
+        }
+    }
+    if(door_found >= 5)
+    {
+        return;
+    }
+
+    // Characters live in room-local space (same as MAPGEN.GetRoomDoorXYZ / SYS_MAPROOM
+    // door queries), so the wall-center offset must be 0 - not the room's map XY.
+    offset_xyz[X] = 0.0f;
+    offset_xyz[Y] = 0.0f;
+    offset_xyz[Z] = 0.0f;
+    srf_file = model_slot_get_ptr(map_room_data[room]);
+    rotation = *((unsigned short*) (map_room_data[room]+8));
+    map_room_door_pushback = pushback;
+    room_find_wall_center(srf_file, rotation, map_room_data[room][24+door_found], xyz, offset_xyz, pushback);
+    if(spin)
+    {
+        *spin = map_room_door_spin;
+    }
+}
+
+//-----------------------------------------------------------------------------------------------
+static void map_room_apply_textures(unsigned char* srf_file)
+{
+    // <ZZ> Same job as MAPGEN.TextureSet() - room_uncompress only copies texture flags,
+    //      the actual RGB bindings have to be filled in afterwards or walls stay white.
+    unsigned int tex_section;
+    unsigned char* name_ptr;
+    unsigned char* room_tex;
+    unsigned char* rgb_file;
+    unsigned char* rgb_data;
+    unsigned short i;
+    char name[16];
+
+    if(srf_file == NULL || roombuffer == NULL)
+    {
+        return;
+    }
+
+    tex_section = sdf_read_unsigned_int(srf_file + SRF_TEXTURE_OFFSET);
+    name_ptr = srf_file + tex_section + 32;
+    room_tex = roombuffer + (*((unsigned int*) (roombuffer + SRF_TEXTURE_OFFSET)));
+
+    repeat(i, 32)
+    {
+        memcpy(name, name_ptr, 8);
+        name[8] = 0;
+        make_uppercase(name);
+
+        if(strcmp(name, "DECAL") == 0)   { strcpy(name, "=MPDECAL"); }
+        if(strcmp(name, "CAVE") == 0)    { strcpy(name, "MPFL00A"); }
+        if(strcmp(name, "CAVEBR") == 0)  { strcpy(name, "=MPBR00A"); }
+        if(strcmp(name, "LAWN") == 0)    { strcpy(name, "MPFL01A"); }
+        if(strcmp(name, "LAWNBR") == 0)  { strcpy(name, "=MPBR01A"); }
+        if(strcmp(name, "WOOD") == 0)    { strcpy(name, "MPFL05A"); }
+        if(strcmp(name, "WOODBR") == 0)  { strcpy(name, "MPBR05A"); }
+        if(strcmp(name, "FLOOR") == 0)   { strcpy(name, "MPFL07A"); }
+        if(strcmp(name, "FLOOR2") == 0)  { strcpy(name, "MPFL03A"); }
+        if(strcmp(name, "WALL") == 0)    { strcpy(name, "MPWL05A"); }
+        if(strcmp(name, "WALLCAP") == 0) { strcpy(name, "MPCP05A"); }
+        if(strcmp(name, "FENCE") == 0)   { strcpy(name, "MPFENCE"); }
+        if(strcmp(name, "PAVE") == 0)    { strcpy(name, "MPPAVE"); }
+
+        rgb_file = sdf_find_filetype(name, SDF_FILE_IS_RGB);
+        if(rgb_file)
+        {
+            rgb_data = sdf_index_get_data(rgb_file);
+            if(rgb_data)
+            {
+                *((unsigned int*) (room_tex + (i<<3))) = *((unsigned int*) (rgb_data + 2));
+            }
+        }
+        name_ptr += 8;
+    }
+}
+
+//-----------------------------------------------------------------------------------------------
+static void map_load_current_room(unsigned short room)
+{
+    unsigned char* srf_file;
+    unsigned char* wall_file;
+    unsigned char twset;
+
+    if(room >= num_map_room)
+    {
+        return;
+    }
+
+    map_current_room = room;
+    if(map_room_data[room][13] & MAP_ROOM_FLAG_TOWN)
+    {
+        map_last_town_room = room;
+    }
+
+    obj_poof_all(PARTICLE);
+    srf_file = model_slot_get_ptr(map_room_data[room]);
+    twset = map_room_data[room][11];
+    if(twset == 0)
+    {
+        wall_file = sdf_find_filetype("WALLSET0", SDF_FILE_IS_DDD);
+    }
+    else
+    {
+        wall_file = sdf_find_filetype("WALLSET1", SDF_FILE_IS_DDD);
+    }
+    if(srf_file && wall_file)
+    {
+        wall_file = sdf_index_get_data(wall_file);
+        room_uncompress(srf_file, roombuffer, wall_file, *((unsigned short*) (map_room_data[room]+8)), map_room_data[room]+24, map_room_data[room]+32, map_room_data[room][30], map_room_data[room][10], map_room_data[room][10]);
+        map_room_apply_textures(srf_file);
+    }
+    global_room_changed = TRUE;
+    main_timer_length = 32;
+}
+
+//-----------------------------------------------------------------------------------------------
+void map_record_current_room_objects(void)
+{
+    unsigned short j, k, m;
+    unsigned char opcode;
+
+    if(map_current_room >= num_map_room)
+    {
+        return;
+    }
+
+    // Guests only see NETLIST props as puppets (no object-index 249).  Wiping the
+    // defeated bitmask here would mark every statue/squire/etc. gone, so they never
+    // come back on a later solo re-entry.  Only the machine that hosted the spawn
+    // may rewrite that list.
+    if(network_game_active && !map_room_objects_hosted)
+    {
+        return;
+    }
+
+    repeat(j, 8)
+    {
+        map_room_data[map_current_room][32+j] = 255;
+    }
+    repeat(j, MAX_CHARACTER)
+    {
+        if(main_character_on[j])
+        {
+            k = main_character_data[j][249];
+            if(k < 64)
+            {
+                opcode = FALSE;
+                repeat(m, MAX_LOCAL_PLAYER)
+                {
+                    opcode = opcode || (*((unsigned short*)(main_character_data[j]+76)) == local_player_character[m]);
+                }
+                if(main_character_data[j][78] == TEAM_GOOD && opcode)
+                {
+                }
+                else
+                {
+                    map_room_data[map_current_room][32+(k>>3)] = map_room_data[map_current_room][32+(k>>3)] & (255 - (1<<(k&7)));
+                    main_character_data[j][249] = 255;
+                }
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------
+static void map_poof_room_leavers(void)
+{
+    unsigned short i;
+
+    repeat(i, MAX_CHARACTER)
+    {
+        if(main_character_on[i] && !map_index_is_local_player(i))
+        {
+            obj_destroy(main_character_data[i]);
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------------------------
+static void map_place_local_players_at_door(unsigned short next_room, unsigned short from_room)
+{
+    unsigned short i, new_spin, old_spin;
+    unsigned char* character_data;
+    float* character_xyz;
+    float x, y, z, pushback;
+    unsigned char placed;
+
+    // Match CDOOR.ChangeRoom: door facing for spin, then keep camera relative to that turn.
+    map_get_door_xyz(next_room, from_room, 8.0f, script_matrix, &new_spin);
+    old_spin = 0;
+    placed = FALSE;
+    repeat(i, MAX_CHARACTER)
+    {
+        if(main_character_on[i] && map_index_is_local_player(i))
+        {
+            character_data = main_character_data[i];
+            if(!placed)
+            {
+                old_spin = *((unsigned short*) (character_data+56));
+            }
+            character_xyz = (float*) character_data;
+            pushback = 8.0f - *((float*) (character_data+160));
+            map_get_door_xyz(next_room, from_room, pushback, script_matrix, &new_spin);
+            x = script_matrix[X];
+            y = script_matrix[Y];
+            z = script_matrix[Z];
+            character_xyz[X] = x;
+            character_xyz[Y] = y;
+            character_xyz[Z] = z;
+            *((float*) (character_data+12)) = x;
+            *((float*) (character_data+16)) = y;
+            *((float*) (character_data+24)) = 0.0f;
+            *((float*) (character_data+28)) = 0.0f;
+            *((float*) (character_data+32)) = 0.0f;
+            *((float*) (character_data+20)) = z + 1.0f;
+            *((unsigned short*) (character_data+56)) = new_spin;
+            *((unsigned short*) (character_data+166)) = 60;
+            character_data[191] = 60;
+            placed = TRUE;
+        }
+    }
+
+    if(placed)
+    {
+        camera_rotation_xy[X] = camera_rotation_xy[X] - new_spin + (unsigned short)(old_spin + 32768);
+    }
+    target_xyz[X] = 0.0f;
+    target_xyz[Y] = 0.0f;
+    target_xyz[Z] = 5.0f;
+    display_camera_position(1, 0.0f, 0.0f);
+}
+
+//-----------------------------------------------------------------------------------------------
+void map_sync_to_peer_room(unsigned short next_room, unsigned short from_room)
+{
+    // <ZZ> Loads a room because a network peer entered it...  All players stay in the
+    //      same room, so every machine follows the first peer to walk through a door...
+    if(next_room >= num_map_room || next_room == map_current_room)
+    {
+        return;
+    }
+
+    map_record_current_room_objects();
+    map_poof_room_leavers();
+    map_place_local_players_at_door(next_room, from_room);
+    map_load_current_room(next_room);
+    character_update_all();
+
+    log_message("NET:    Synced to room %d (from room %d)", next_room, from_room);
 }
 
 //-----------------------------------------------------------------------------------------------

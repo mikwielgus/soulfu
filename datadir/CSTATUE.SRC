@@ -131,6 +131,12 @@ int Event()
   dark = self.eqcol23 & 1
 
 
+  // Network puppets - must handle before the hits<=10 kill path below
+  if(self.event == EVENT_NETWORK_UPDATE)
+    STANDARD.Event()
+    return 0
+
+
   if(self.hits <= 10)
     self.hits = 0
   STANDARD.DamageSoundEvent("FILE:-STATU01.RAW", NULL, "FILE:-STATU03.RAW")

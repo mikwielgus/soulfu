@@ -1887,6 +1887,8 @@ void room_spawn_all(unsigned char* srf_file, unsigned short rotation, unsigned c
     unsigned char door_flags;
     unsigned char object_number;
     unsigned char do_spawn;
+    unsigned char net_script_name[9];
+    unsigned char n;
 
 
 
@@ -1894,6 +1896,12 @@ void room_spawn_all(unsigned char* srf_file, unsigned short rotation, unsigned c
     // Make sure we don't break things...
     old_object_data = current_object_data;
     old_object_item = current_object_item;
+
+    // Host props locally only when no peer is already in this room; guests get puppets.
+    map_room_objects_hosted = !network_room_is_remotely_occupied(map_current_room);
+
+    // Remember whether we actually host room props this visit (vs. only puppets)...
+    map_room_objects_hosted = !network_room_is_remotely_occupied(map_current_room);
 
 
     // Find the rotation info...
@@ -2023,6 +2031,26 @@ void room_spawn_all(unsigned char* srf_file, unsigned short rotation, unsigned c
                                 {
                                     do_spawn = object_defeated_list[object_number>>3];
                                     do_spawn = ((do_spawn>>(object_number&7))+1) & 1;
+                                }
+                            }
+                            if(type == CHARACTER && do_spawn && network_room_is_remotely_occupied(map_current_room))
+                            {
+                                // Peer already hosts this room - skip anything in NETLIST.DAT
+                                // (including statues/crates/chests); their copies arrive as puppets.
+                                // object_group_data is "NAME.RUN"; NETLIST stores bare "NAME".
+                                repeat(n, 8)
+                                {
+                                    if(object_group_data[n] == 0 || object_group_data[n] == '.')
+                                    {
+                                        net_script_name[n] = 0;
+                                        break;
+                                    }
+                                    net_script_name[n] = object_group_data[n];
+                                }
+                                net_script_name[8] = 0;
+                                if(network_find_script_index(net_script_name))
+                                {
+                                    do_spawn = FALSE;
                                 }
                             }
 

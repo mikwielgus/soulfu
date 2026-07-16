@@ -98,30 +98,30 @@ Refresh()
   append_all = FALSE
   old_input_active = SystemGet(SYS_INPUTACTIVE, 0, 0)
   SystemSet(SYS_INPUTACTIVE, 0, 0, 0)
-//  if(SystemGet(SYS_KEYPRESSED, KEY_F1, 0))
-//    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 0, 0)))
-//      if(chat_player==0)
-//        append_all = TRUE
-//      chat_player = 0
-//      makeactive = TRUE
-//  if(SystemGet(SYS_KEYPRESSED, KEY_F2, 0))
-//    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 1, 0)))
-//      if(chat_player==1)
-//        append_all = TRUE
-//      chat_player = 1
-//      makeactive = TRUE
-//  if(SystemGet(SYS_KEYPRESSED, KEY_F3, 0))
-//    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 2, 0)))
-//      if(chat_player==2)
-//        append_all = TRUE
-//      chat_player = 2
-//      makeactive = TRUE
-//  if(SystemGet(SYS_KEYPRESSED, KEY_F4, 0))
-//    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 3, 0)))
-//      if(chat_player==3)
-//        append_all = TRUE
-//      chat_player = 3
-//      makeactive = TRUE
+  if(SystemGet(SYS_KEYPRESSED, KEY_F1, 0))
+    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 0, 0)))
+      if(chat_player==0)
+        append_all = TRUE
+      chat_player = 0
+      makeactive = TRUE
+  if(SystemGet(SYS_KEYPRESSED, KEY_F2, 0))
+    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 1, 0)))
+      if(chat_player==1)
+        append_all = TRUE
+      chat_player = 1
+      makeactive = TRUE
+  if(SystemGet(SYS_KEYPRESSED, KEY_F3, 0))
+    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 2, 0)))
+      if(chat_player==2)
+        append_all = TRUE
+      chat_player = 2
+      makeactive = TRUE
+  if(SystemGet(SYS_KEYPRESSED, KEY_F4, 0))
+    if(FindByIndex(SystemGet(SYS_LOCALPLAYER, 3, 0)))
+      if(chat_player==3)
+        append_all = TRUE
+      chat_player = 3
+      makeactive = TRUE
   SystemSet(SYS_INPUTACTIVE, 0, 0, old_input_active)
   if(append_all && old_input_active)
     // Key was hit twice, so append the <ALL> tag to the start of the string...
