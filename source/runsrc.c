@@ -283,6 +283,7 @@ const char ff_map[MAX_FAST_FUNCTION][32] = {
 #define SYS_SAVE                    227
 #define SYS_LOAD                    228
 #define SYS_SCREENPARAMS            229
+#define SYS_PAUSE                   230
 #define SYS_MODELCHECKHACK          255
 
 
@@ -2099,6 +2100,10 @@ log_message("INFO:   Starting game");
 // !!!BAD!!!
                         play_game_active = FALSE;
                         main_game_active = FALSE;
+                        pause_active = FALSE;
+                        break;
+                    case SYS_PAUSE:
+                        pause_active = (unsigned char) m;
                         break;
                     case SYS_LOCALPLAYER:
                         // j is the local player number (0-3), m is the character controlled by that player...
@@ -4646,6 +4651,9 @@ log_message("ERROR:  Membuffer MAPBUFFER requested...");
                             case 5: i = (int)(virtual_y * 256.0); break;
                             default: i = FALSE;
                         }
+                        break;
+                    case SYS_PAUSE:
+                        i = pause_active;
                         break;
                     default:
                         i = TRUE;
