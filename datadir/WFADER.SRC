@@ -114,6 +114,8 @@ Refresh()
     if(SystemGet(SYS_KEYPRESSED, KEYESCAPE, 0))
       ButtonSound()
       escape_mode = !escape_mode
+      // Reuse the F9-pause code
+      SystemSet(SYS_PAUSE, 0, 0, escape_mode)
     if(escape_mode)
       if(button_one == 250)
         ButtonSound()

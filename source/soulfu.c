@@ -89,7 +89,6 @@ void main_loop(void)
   int i, j;
   float x, y, brx, bry;
   char* alt_text;
-  unsigned char pause_active = FALSE;
 
 
   log_message("INFO:   Starting main loop");
@@ -515,21 +514,18 @@ if(map_room_data[map_current_room][13] & MAP_ROOM_FLAG_OUTSIDE) {
     //        display_string("DEVTOOL OFF", 290.0f, 290.0f, 10.0f);
     //#endif
 
-    if(pause_active)
+    if(pause_active && play_game_active)
     {
-      if(play_game_active)
-      {
-        unsigned char *translated_paused[LANGUAGE_MAX] = {
-          "-Paused-",
-          "-Pause-",
-          "-Pausado-",
-          "-Percepito-",
-          "-Paused-",
-          "-Pauza-"
-        };
-        int len = strlen(translated_paused[user_language]);
-        display_string(translated_paused[user_language], (virtual_x - (len * 15.0f)) / 2, 15.0f, 15.0f);
-      }
+      unsigned char *translated_paused[LANGUAGE_MAX] = {
+        "-Paused-",
+        "-Pause-",
+        "-Pausado-",
+        "-Percepito-",
+        "-Paused-",
+        "-Pauza-"
+      };
+      int len = strlen(translated_paused[user_language]);
+      display_string(translated_paused[user_language], (virtual_x - (len * 15.0f)) / 2, 15.0f, 15.0f);
     }
 
 #ifdef DEVTOOL
@@ -1036,6 +1032,7 @@ unsigned short main_frame_skip = 0;  // Number of game frames in last update...
 unsigned char* random_table = NULL;  // The random number table
 unsigned char main_game_active;         // TRUE if the local machine has joined or started a game
 unsigned char play_game_active;         // TRUE if the local players are actually playing (ie characters are spawned and runnin' around)
+unsigned char pause_active = FALSE;     // TRUE if game simulation is paused (F9 or escape menu)
 unsigned char paying_customer = FALSE;  // Is the local machine a paying customer?
 unsigned char update_active = FALSE;    // For updating files in the datafile...
 unsigned int time_since_i_got_heartbeat;// Frames since I got a heartbeat from somebody...

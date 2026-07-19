@@ -36,6 +36,7 @@ Refresh()
       //Save Game
       SystemSet(SYS_SAVE,slot_save+1,0,0)
   else
+    SystemSet(SYS_PAUSE, 0, 0, FALSE)
     GoPoof(POOF_SELF)
   
   
@@ -49,10 +50,12 @@ Refresh()
         curroom = MAPGEN.GetCurrentRoom()
         MAPGEN.SetCurrentRoom(curroom)
         SystemSet(SYS_LOAD,slot_save+1,0,0)
+        SystemSet(SYS_PAUSE, 0, 0, FALSE)
         GoPoof(POOF_SELF)
       else
         BuzzerSound()
     else
+      SystemSet(SYS_PAUSE, 0, 0, FALSE)
       GoPoof(POOF_SELF)
   
   //Window Setup

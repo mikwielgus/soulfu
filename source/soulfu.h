@@ -550,6 +550,7 @@ SF_EXTERN unsigned char* random_table ; // = NULL;  // The random number table
 // Network and game system stuff...
 SF_EXTERN unsigned char main_game_active;         // TRUE if the local machine has joined or started a game
 SF_EXTERN unsigned char play_game_active;         // TRUE if the local players are actually playing (ie characters are spawned and runnin' around)
+SF_EXTERN unsigned char pause_active;             // TRUE if game simulation is paused (F9 or escape menu)
 SF_EXTERN unsigned char paying_customer ; // = FALSE;  // Is the local machine a paying customer?
 SF_EXTERN unsigned char update_active ; // = FALSE;    // For updating files in the datafile...
 
