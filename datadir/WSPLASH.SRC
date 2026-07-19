@@ -8,7 +8,7 @@ Spawn()
   mode = 0
   timer = 0
   SystemSet(SYS_CURSORDRAW, 0, 0, FALSE)
-  PlayMusic("FILE:GOODNITE.MUS", FileReadByte("FILE:GOODNITE.MUS", 26), MUSIC_PLAY)
+  PlayMusic("FILE:GOODNITE.MUS", FileReadByte("FILE:GOODNITE.MUS", 26), MUSIC_ONCE)
 
 
 //-----------------------------------------------------------------------
@@ -24,6 +24,9 @@ Refresh()
     i = 0
     while(i < 256)
       if(SystemGet(SYS_KEYPRESSED, i, 0))
+        // End splash screen music instantly when skipping it by button press.
+        StopMusic()
+
         // Go to mode=11, which is the final state of the splash screen.
         mode = 11
         timer = 0
@@ -108,7 +111,7 @@ Refresh()
     timer = timer + SystemGet(SYS_MAINFRAMESKIP, 0, 0) * 3
   if(mode == 5)
     mode = 6
-    PlayMusic("FILE:EVILNITE.MUS", FileReadByte("FILE:EVILNITE.MUS", 26), MUSIC_PLAY)
+    PlayMusic("FILE:EVILNITE.MUS", FileReadByte("FILE:EVILNITE.MUS", 26), MUSIC_ONCE)
   if(mode == 6)
     WindowMegaImage(-16.0,-2.0,  0.0,-2.0,  0.0,2.0,  -16.0,2.0  ,0.01,0.0,  1.0,1.0,  WHITE, ALPHA_NONE, "FILE:TITLEL.RGB")
     WindowMegaImage(0.0,-2.0,  16.0,-2.0,  16.0,2.0,  0.0,2.0  ,0.0,0.0,  0.99,1.0,  WHITE, ALPHA_NONE, "FILE:TITLER.RGB")
