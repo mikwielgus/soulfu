@@ -19,6 +19,18 @@ Refresh()
   self = FindSelf()
 
 
+  // Skip splash on any button press.
+  if(mode < 11)
+    i = 0
+    while(i < 256)
+      if(SystemGet(SYS_KEYPRESSED, i, 0))
+        // Go to mode=11, which is the final state of the splash screen.
+        mode = 11
+        timer = 0
+        i = 256
+      i++
+
+
   // Set the scaling to large...
   SystemSet(SYS_WINDOWSCALE, 0, 0, 2048)
 
