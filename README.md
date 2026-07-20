@@ -47,6 +47,7 @@ Install the following tools and libraries:
 + OpenGL development files.
 
 ### Examples
+
 <details>
 <summary>Arch Linux</summary>
 
@@ -118,6 +119,7 @@ pacman -S git make
 3. It is recommended to clone the repo within MSYS2, because SRC files need EOLs in Unix style.
 ```
 git clone --recurse-submodules https://github.com/szymor/soulfu soulfu
+cd soulfu
 ```
 
 4. Update package lists and install the required libraries:
@@ -165,7 +167,35 @@ make -f Makefile.mingw64
 ```
 setarch x86
 pkgman install libsdl2_devel sdl2_net_devel libogg_devel libvorbis_devel libsdl2_x86 sdl2_net_x86
+cd soulfu
 make
+```
+
+</details>
+
+<details>
+<summary>Nix / NixOS</summary>
+
+To build and run SoulFu under Nix, run
+
+```sh
+cd soulfu
+nix-shell -p pkg-config gcc gnumake SDL2 SDL2_net libogg libjpeg libvorbis libGL libGLU
+make
+./soulfu
+```
+
+This repository also provides a Nix flake with a development shell. If you have
+flakes enabled in your Nix configuration
+(`experimental-features = nix-command flakes` in `nix.conf`),
+you can instead use that to build and run SoulFu in a reproductible and isolated
+environment:
+
+```sh
+cd soulfu
+nix develop
+make
+./soulfu
 ```
 
 </details>
