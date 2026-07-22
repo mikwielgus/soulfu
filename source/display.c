@@ -95,6 +95,7 @@ float screen_frustum_y;
 
 SDL_Window *main_window = NULL;
 SDL_GLContext gl_context = NULL;
+static unsigned char main_had_input_focus = FALSE;
 
 unsigned char line_mode = 0;            // Global control for cartoon lines
 float initial_camera_matrix[16];        // A matrix to speed up/simplify 3D drawing routines
@@ -165,7 +166,12 @@ unsigned int max_texture_size = 256;
 #define ONE_OVER_255 0.003921568627450980392156862745098f
 #define display_clear_zbuffer()         { glClear(GL_DEPTH_BUFFER_BIT); }
 #define display_clear_buffers()         { glClearColor(color_temp[0]*ONE_OVER_255, color_temp[1]*ONE_OVER_255, color_temp[2]*ONE_OVER_255, 1.0);  if(volumetric_shadows_on) { glClearStencil(8);  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); } else { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); } }
-#define display_swap()                  { SDL_GL_SwapWindow(main_window); }
+// Swap is performed only if either
+// window has focus: this prevents the swap from stalling the main loop if window is unfocused.
+// window never had focus: this prevents chicken-and-egg situation where window
+//   cannot render because it has no focus but can't get focus due to never getting
+//   rendered in the first place.
+#define display_swap()                  { if(SDL_GetWindowFlags(main_window) & SDL_WINDOW_INPUT_FOCUS) { main_had_input_focus = TRUE; SDL_GL_SwapWindow(main_window); } else if(!main_had_input_focus) SDL_GL_SwapWindow(main_window); }
 #define display_viewport(x, y, w, h)    { glViewport(x, y, w, h); }
 float global_depth_min = 0.066f;
 #define display_zbuffer_on()            { glEnable(GL_DEPTH_TEST);  glDepthMask(TRUE);  glDepthFunc(GL_LEQUAL); }
